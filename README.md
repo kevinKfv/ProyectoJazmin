@@ -81,6 +81,17 @@ Abre [http://localhost:3000](http://localhost:3000) en tu navegador e ingresa co
 
 ---
 
+## 🌐 Despliegue en Producción (Render & Cloudflare)
+
+El proyecto incluye configuración lista para producción:
+
+* **Render:** Despliegue en 1 clic utilizando el blueprint `render.yaml` (crea el servicio web Next.js y la base de datos PostgreSQL) o mediante el `Dockerfile` multi-etapa.
+* **Cloudflare:** Configuración optimizada con `wrangler.toml`, reglas de caché estática inmutable en `public/_headers` y enrutamiento en `public/_routes.json`.
+
+👉 Consulta la **[Guía Completa de Despliegue](GUIA_DESPLIEGUE.md)** para ver el paso a paso detallado.
+
+---
+
 ## 👤 Credenciales Demo para Pruebas
 
 * **Email:** `jazmin@sewstudio.com`
