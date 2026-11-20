@@ -1,0 +1,373 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// NextAuth schema
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?  @db.Text
+  access_token       String?  @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?  @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  role          String    @default("USER") // USER, ADMIN
+  accounts      Account[]
+  sessions      Session[]
+  
+  // Relaciones SewStudio
+  projects          Project[]
+  materials         Material[]
+  patterns          Pattern[]
+  labels            Label[]
+  aiRequests        AiRequest[]
+  clients           Client[]
+  equipments        Equipment[]
+  fixedExpenses     FixedExpense[]
+  workshopSettings  WorkshopSettings?
+  suppliers         Supplier[]
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Modelos específicos de SewStudio
+model Project {
+  id                      String   @id @default(cuid())
+  name                    String
+  description             String?
+  status                  String   @default("Idea") // Idea, Diseño, Corte, Costura, Ajustes, Finalizado
+  category                String?
+  startDate               DateTime?
+  dueDate                 DateTime?
+  notes                   String?
+  estimatedHours          Float?
+  actualHours             Float?
+  estimatedMaterialsCost  Float?   @default(0)
+  estimatedLaborHours     Float?   @default(0)
+  estimatedTotalCost      Float?   @default(0)
+  actualMaterialsCost     Float?   @default(0)
+  equipmentCosts          Float?   @default(0)
+  overheadCosts           Float?   @default(0)
+  totalCost               Float?
+  suggestedWholesalePrice Float?   @default(0)
+  suggestedRetailPrice    Float?   @default(0)
+  hourlyLaborRate         Float?   @default(15)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  isPublic                Boolean  @default(false)
+  publicPrice             Float?
+  publicImageUrl          String?
+
+  userId                  String
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  clientId                String?
+  client                  Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  materials               ProjectMaterial[]
+  equipments              ProjectEquipment[]
+  fitSessions             FitSession[]
+  quotes                  Quote[]
+}
+
+model Material {
+  id               String   @id @default(cuid())
+  name             String
+  category         String   // Tela, Hilo, Cremallera, Botón, Elástico, Entretela, Agujas, Otros
+  quantity         Float    @default(0)
+  unit             String
+  costPerUnit      Float    @default(0)
+  supplier         String?
+  location         String?
+  reorderLevel     Float?
+  imageUrl         String?
+  qrCode           String?
+  barcode          String?
+  shrinkageRatePct Float?   @default(0) // % encogimiento por lavado previo
+  usableQuantity   Float?   // Stock neto utilizable post-lavado
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  supplierId       String?
+  supplierRef      Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
+  projects         ProjectMaterial[]
+  movements        InventoryMovement[]
+}
+
+model ProjectMaterial {
+  id           String   @id @default(cuid())
+  quantityUsed Float
+
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  materialId   String
+  material     Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, materialId])
+}
+
+model InventoryMovement {
+  id          String   @id @default(cuid())
+  type        String   // ENTRADA, SALIDA
+  quantity    Float
+  date        DateTime @default(now())
+  notes       String?
+
+  materialId  String
+  material    Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+}
+
+model Pattern {
+  id          String   @id @default(cuid())
+  name        String
+  category    String?
+  description String?
+  tags        String?
+  imageUrl    String?
+  dataJson    String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  versions    PatternVersion[]
+}
+
+model PatternVersion {
+  id            String   @id @default(cuid())
+  versionNumber String
+  format        String   // PDF, SVG, DXF, PNG
+  fileUrl       String
+  createdAt     DateTime @default(now())
+
+  patternId     String
+  pattern       Pattern  @relation(fields: [patternId], references: [id], onDelete: Cascade)
+}
+
+model Label {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   // Marca, Lavado, Producto, QR
+  designJson  String   @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AiRequest {
+  id        String   @id @default(cuid())
+  prompt    String   @db.Text
+  response  String   @db.Text
+  tokens    Int?
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Modelos del Módulo CRM Textil y Clientes
+model Client {
+  id            String               @id @default(cuid())
+  name          String
+  email         String?
+  phone         String?
+  address       String?
+  notes         String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  userId        String
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  measurements  MeasurementHistory[]
+  fitSessions   FitSession[]
+  quotes        Quote[]
+  projects      Project[]
+}
+
+model MeasurementHistory {
+  id          String   @id @default(cuid())
+  recordedAt  DateTime @default(now())
+  notes       String?
+  dataJson    String   @db.Text // Almacena el objeto con las >20 medidas anatómicas (busto, cintura, cadera, etc.)
+
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
+
+model FitSession {
+  id           String   @id @default(cuid())
+  title        String   // Primera Prueba, Segunda Prueba, Calce Final, Entrega
+  date         DateTime
+  status       String   @default("PENDIENTE") // PENDIENTE, CONFIRMADA, COMPLETADA, CANCELADA
+  reminderSent Boolean  @default(false)
+  notes        String?
+  createdAt    DateTime @default(now())
+
+  clientId     String
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  projectId    String?
+  project      Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+}
+
+model Quote {
+  id            String    @id @default(cuid())
+  quoteNumber   String
+  date          DateTime  @default(now())
+  validUntil    DateTime?
+  itemsJson     String    @db.Text // Array de { description, qty, price, total }
+  subtotal      Float
+  discount      Float     @default(0)
+  total         Float
+  depositPaid   Float     @default(0) // Seña (ej. 50%)
+  balanceDue    Float     @default(0) // Saldo a pagar a la entrega
+  paymentStatus String    @default("PENDIENTE") // PENDIENTE, SENA_50, PAGADO_TOTAL
+  status        String    @default("BORRADOR") // BORRADOR, ENVIADO, APROBADO
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  clientId      String
+  client        Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  projectId     String?
+  project       Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+}
+
+// Modelos de Costeo Financiero, Amortización y Gastos Fijos
+model Equipment {
+  id                 String             @id @default(cuid())
+  name               String             // Overlock 4 Hilos, Recta Industrial, Collareta, Plancha industrial
+  purchasePrice      Float              @default(0) // Precio de compra
+  usefulLifeHours    Float              @default(5000) // Horas de vida útil estimadas
+  maintenanceCost    Float              @default(0) // Mantenimiento total estimado
+  powerWatts         Float              @default(0) // Potencia en Watts
+  electricityRateKwh Float              @default(0.15) // Tarifa por kWh
+  hourlyWearCost     Float              @default(0) // Desgaste amortización por hora
+  hourlyEnergyCost   Float              @default(0) // Consumo eléctrico por hora
+  hourlyRate         Float              @default(0) // Costo total por hora (desgaste + electricidad)
+  notes              String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  userId             String
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  projects           ProjectEquipment[]
+}
+
+model FixedExpense {
+  id          String   @id @default(cuid())
+  name        String   // Luz, Alquiler, Internet, Agua, Gastos Varios
+  monthlyCost Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model WorkshopSettings {
+  id                  String   @id @default(cuid())
+  monthlyWorkingHours Float    @default(160) // Horas trabajadas en el taller al mes
+  hourlyLaborRate     Float    @default(15) // Tarifa por hora de mano de obra base
+  electricityRateKwh  Float    @default(0.15) // Tarifa de luz por kWh
+  wholesaleMarginPct  Float    @default(40) // Margen de ganancia venta mayorista (%)
+  retailMarginPct     Float    @default(100) // Margen de ganancia venta minorista (%)
+  updatedAt           DateTime @updatedAt
+
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ProjectEquipment {
+  id          String    @id @default(cuid())
+  hoursUsed   Float     @default(0)
+  cost        Float     @default(0)
+
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  equipmentId String
+  equipment   Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, equipmentId])
+}
+
+// Modelos de Proveedores e Historial de Precios
+model Supplier {
+  id           String                 @id @default(cuid())
+  name         String                 // Nombre de la empresa / Proveedor
+  contactName  String?                // Persona de contacto
+  phone        String?
+  email        String?
+  address      String?
+  rating       Int                    @default(5) // Calificación 1 a 5 estrellas
+  notes        String?
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  userId       String
+  user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  materials    Material[]
+  priceHistory SupplierPriceHistory[]
+}
+
+model SupplierPriceHistory {
+  id           String   @id @default(cuid())
+  materialName String   // Nombre del insumo o tipo de tela
+  unit         String   // m, kg, bobinas, etc.
+  pricePerUnit Float    // Precio histórico
+  date         DateTime @default(now())
+  notes        String?
+
+  supplierId   String
+  supplier     Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+}
+

@@ -1,36 +1,120 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🪡 SewStudio — Plataforma Integral para Costura y Patronaje
 
-## Getting Started
+![SewStudio Banner](https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=1200&auto=format&fit=crop)
 
-First, run the development server:
+**SewStudio** es una aplicación web moderna diseñada para modistas, diseñadoras de moda, patronistas y talleres textiles. Centraliza la gestión de proyectos, inventario de insumos, costeo financiero, diseño de etiquetas, patronaje vectorial interactivo y catálogo público de prendas.
+
+---
+
+## 🌟 Características Principales
+
+* **📊 Dashboard de Métricas:** Resumen en tiempo real de proyectos activos, materiales en inventario, horas invertidas y alertas de bajo stock.
+* **📋 Tablero Kanban de Proyectos:** Seguimiento visual por fases (*Idea ➡️ Diseño ➡️ Corte ➡️ Costura ➡️ Ajustes ➡️ Finalizado*).
+* **🧵 Inventario & Historial de Movimientos:** Control de existencias de telas, hilos, cierres, botones y fornituras con trazabilidad de entradas y salidas.
+* **💰 Calculadora de Costos (Módulo 4):** Cálculo automático del costo total de prendas sumando mano de obra (horas × tarifa) e insumos consumidos.
+* **📐 Editor Vectorial de Moldes y Patrones:**
+  * Mesa de trabajo interactiva basada en canvas HTML5 (`react-konva`).
+  * Inserción de **moldes base predefinidos** (Delantero, Espalda, Manga, Falda, Cuello, Bolsillo).
+  * Control de **Margen de Costura** (*Seam Allowance*) de 0.7cm a 2.0cm con visualización de líneas de corte.
+  * Cálculo dinámico de distancias en **centímetros** por segmento.
+  * Herramientas de **Cinta Métrica**, Anotación de Texto, Zoom/Pan con rueda del mouse e historial de **Deshacer/Rehacer** (`Ctrl+Z`).
+* **🏷️ Diseñador e Historial de Etiquetas:**
+  * Editor gráfico para etiquetas de Marca, Lavado/Cuidado, Producto y Códigos QR.
+  * Historial de etiquetas guardadas en base de datos con exportación a PNG en alta resolución.
+* **🤖 Asistente de Costura con IA:** Chat bot integrado asistido por LLM (Groq / OpenAI) para consulta de técnicas, tensiones de aguja e hilado.
+* **🌟 Catálogo Público & Portfolio:** Galería de creaciones terminadas con precios de venta y opción de compartir enlaces públicos con clientes.
+
+---
+
+## 🛠️ Stack Tecnológico
+
+| Capa | Tecnología |
+| :--- | :--- |
+| **Framework Frontend & Backend** | [Next.js 16 (App Router)](https://nextjs.org/) con TypeScript |
+| **Biblioteca UI** | [React 19](https://react.dev/), [TailwindCSS](https://tailwindcss.com/), [shadcn/ui](https://ui.shadcn.com/) |
+| **Base de Datos & ORM** | PostgreSQL con [Prisma ORM 5.22](https://www.prisma.io/) |
+| **Autenticación** | [NextAuth.js v5](https://next-auth.js.org/) |
+| **Lienzo Gráfico / Canvas** | [Konva.js](https://konvajs.org/) & `react-konva` |
+| **Inteligencia Artificial** | [Vercel AI SDK](https://sdk.vercel.ai/) & [@ai-sdk/groq](https://groq.com/) |
+
+---
+
+## 🚀 Instalación y Puesta en Marcha
+
+### 1. Clonar el repositorio e instalar dependencias
+
+```bash
+npm install
+```
+
+### 2. Configurar variables de entorno (`.env`)
+
+Crea un archivo `.env` en la raíz del proyecto con el siguiente contenido:
+
+```env
+DATABASE_URL="postgresql://postgres@localhost:5432/sewstudio?schema=public"
+NEXTAUTH_SECRET="secret1234567890"
+GROQ_API_KEY="tu_api_key_de_groq"
+```
+
+### 3. Sincronizar esquema de Base de Datos
+
+```bash
+npx prisma db push
+```
+
+### 4. Poblar datos de prueba (Seeding)
+
+Ejecuta el script de siembra para generar automáticamente usuarios demo, proyectos en todos los estados del Kanban, inventario, patrones vectoriales y etiquetas:
+
+```bash
+npm run db:seed
+```
+
+### 5. Iniciar el servidor de desarrollo
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abre [http://localhost:3000](http://localhost:3000) en tu navegador e ingresa con las credenciales demo.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 👤 Credenciales Demo para Pruebas
 
-## Learn More
+* **Email:** `jazmin@sewstudio.com`
+* **Contraseña:** *(Cualquier contraseña es válida en desarrollo local)*
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 📁 Estructura del Proyecto
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```text
+programa jazmin/
+├── prisma/
+│   ├── schema.prisma       # Esquema ORM (User, Project, Material, Pattern, Label, AiRequest)
+│   └── seed.js             # Script de siembra de datos de prueba
+├── public/                 # Archivos estáticos y subidas de usuario
+├── src/
+│   ├── app/
+│   │   ├── actions/        # Server Actions (Proyectos, Inventario, Patrones, Etiquetas)
+│   │   ├── api/            # API Routes (NextAuth, Chat IA)
+│   │   ├── dashboard/      # Rutas del panel principal (Proyectos, Patrones, Inventario, Etiquetas)
+│   │   ├── portfolio/      # Vista pública de catálogo para clientes
+│   │   └── login/          # Página de inicio de sesión
+│   ├── components/
+│   │   ├── pattern-editor/ # Componentes de lienzo y herramientas del Editor de Moldes
+│   │   ├── catalogo/       # Tarjetas y componentes del catálogo público
+│   │   └── ui/             # Componentes de diseño shadcn/ui
+│   ├── lib/                # Instancia de Prisma Client y utilidades
+│   └── store/              # Zustand Store para el estado del Editor Vectorial
+├── package.json
+└── README.md
+```
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 📜 Licencia
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Desarrollado para la gestión integral de patronaje y diseño de moda.

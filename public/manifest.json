@@ -1,0 +1,25 @@
+{
+  "name": "SewStudio - Diseño, Moldería & Taller",
+  "short_name": "SewStudio",
+  "description": "Plataforma integral para modistas, diseñadores y talleres textiles: patronaje, costeo, CRM de clientes y catálogo público con seña online.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0f172a",
+  "theme_color": "#6366f1",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity", "design"]
+}
