@@ -1,144 +1,151 @@
-# 🚀 Guía de Despliegue: Render & Cloudflare
+# 🚀 Guía de Despliegue: Frontend en Cloudflare Pages + Backend & Base de Datos en Render
 
-Esta guía detalla los pasos para desplegar **SewStudio** en **Render** (con base de datos PostgreSQL) y cómo integrarlo con **Cloudflare** para obtener máxima velocidad global (CDN), certificado SSL automático y protección DDoS.
-
----
-
-## 🏛️ Arquitectura Recomendada de Producción
-
-```
-       [ Usuario / Cliente ]
-                 │
-                 ▼
-    ┌──────────────────────────┐
-    │     CLOUDFLARE CDN       │  <── SSL Full, Caché de assets estáticos
-    │   (Dominio & Seguridad)  │      (/_next/static/*) y protección DDoS
-    └────────────┬─────────────┘
-                 │ Proxy (CNAME)
-                 ▼
-    ┌──────────────────────────┐
-    │     RENDER WEB SERVICE   │  <── Next.js 16 (App Router + Server Actions)
-    │     (Servidor Node.js)   │
-    └────────────┬─────────────┘
-                 │ TCP Connection
-                 ▼
-    ┌──────────────────────────┐
-    │    RENDER POSTGRESQL     │  <── Base de datos relacional con Prisma
-    └──────────────────────────┘
-```
+Esta guía está diseñada específicamente para la arquitectura:
+* **Frontend:** Alojado en **Cloudflare Pages** (distribución global en el Edge, SSL automático y velocidad ultra rápida).
+* **Backend y Base de Datos:** Alojado en **Render** (Node.js para el servidor y PostgreSQL administrado para los datos con Prisma).
 
 ---
 
-## 🟣 Parte 1: Despliegue en Render
+## 🏛️ Diagrama de Arquitectura
 
-El proyecto ya cuenta con el archivo `render.yaml` (Render Blueprint), lo que permite crear la Base de Datos PostgreSQL y el Servicio Web con **1 solo clic**.
+```
+                  [ Navegador del Usuario ]
+                             │
+                             ▼
+         ┌───────────────────────────────────────┐
+         │       CLOUDFLARE PAGES (Frontend)     │
+         │   https://tu-proyecto.pages.dev       │
+         │  (React 19, Tailwind, Konva, Canvas)  │
+         └───────────────────┬───────────────────┘
+                             │
+            ┌────────────────┴────────────────┐
+            │ Peticiones API / Rutas          │ Conexión Externa Prisma
+            │ (/api/* rewrite sin CORS)       │ (DATABASE_URL)
+            ▼                                 ▼
+┌───────────────────────────────┐  ┌───────────────────────────────┐
+│       RENDER WEB SERVICE      │  │       RENDER POSTGRESQL       │
+│  (APIs, AI Groq, MercadoPago) │  │  (Base de Datos sewstudio-db) │
+└───────────────┬───────────────┘  └───────────────────────────────┘
+                │
+                └─────────── Internal Connection ──────────┘
+```
 
-### Opción A: Despliegue Automático con Blueprint (Recomendado)
+---
 
-1. Ve a tu cuenta de [Render Dashboard](https://dashboard.render.com/).
-2. Haz clic en **New +** y selecciona **Blueprint**.
-3. Conecta tu repositorio de GitHub: `https://github.com/kevinKfv/ProyectoJazmin.git`.
-4. Render detectará automáticamente el archivo `render.yaml`.
-5. Verás dos recursos que se crearán:
-   * **Database:** `sewstudio-db` (PostgreSQL gratuito).
-   * **Web Service:** `sewstudio-web` (Node.js).
-6. En las variables de entorno, Render generará automáticamente `AUTH_SECRET` y vinculará `DATABASE_URL`. Solo ingresa tu `GROQ_API_KEY` (puedes obtenerla gratis en [console.groq.com](https://console.groq.com/keys)).
-7. Haz clic en **Apply**. Render compilará el proyecto y aprovisionará la base de datos automáticamente.
+## 🟣 Paso 1: Configurar la Base de Datos y Backend en Render
 
-### Opción B: Despliegue Manual en Render
+Primero creamos la base de datos en Render para obtener las credenciales de conexión.
 
-Si prefieres crearlos paso a paso:
+### 1.1 Crear la Base de Datos PostgreSQL
+1. Ve a [Render Dashboard](https://dashboard.render.com/) y haz clic en **New +** ➡️ **PostgreSQL**.
+2. Configura los campos:
+   * **Name:** `sewstudio-db`
+   * **Database:** `sewstudio`
+   * **User:** `sewstudio_user`
+   * **Region:** Selecciona la más cercana (ej: `Oregon (US West)` o `Frankfurt (EU)`).
+   * **Plan:** **Free**.
+3. Haz clic en **Create Database**.
+4. Una vez creada, en la sección **Connections**, copia la **External Database URL** (tiene el formato `postgresql://sewstudio_user:PASSWORD@dpg-xxxxxx.oregon-postgres.render.com/sewstudio`).
+   > [!IMPORTANT]
+   > Copia la **External Database URL** (no la Internal), ya que Cloudflare Pages se conectará desde fuera de la red privada de Render.
 
-#### 1. Crear la Base de Datos PostgreSQL:
-* En Render Dashboard, haz clic en **New +** ➡️ **PostgreSQL**.
-* Nombre: `sewstudio-db`.
-* Database: `sewstudio`.
-* User: `sewstudio_user`.
-* Plan: **Free**.
-* Copia la **Internal Database URL** generada.
+### 1.2 (Opcional / Recomendado) Crear el Servicio Web en Render
+Si además deseas que Render maneje las rutas pesadas de API o Server Actions:
+1. En Render Dashboard, haz clic en **New +** ➡️ **Blueprint**.
+2. Conecta el repositorio: `https://github.com/kevinKfv/ProyectoJazmin.git`.
+3. Render usará el archivo `render.yaml` y creará el servicio `sewstudio-web`.
+4. Copia la URL que te asigne Render (ej: `https://sewstudio-web.onrender.com`).
 
-#### 2. Crear el Web Service:
-* Haz clic en **New +** ➡️ **Web Service**.
-* Conecta el repositorio: `https://github.com/kevinKfv/ProyectoJazmin.git`.
-* **Runtime:** `Node`.
-* **Build Command:**
+---
+
+## 🟠 Paso 2: Desplegar el Frontend en Cloudflare Pages
+
+Cloudflare Pages compilará la interfaz de Next.js y la distribuirá globalmente.
+
+### 2.1 Conectar el Repositorio a Cloudflare Pages
+1. Inicia sesión en el [Panel de Cloudflare](https://dash.cloudflare.com/).
+2. En el menú lateral izquierdo, ve a **Workers & Pages**.
+3. Haz clic en el botón **Create application** (o **Create**).
+4. Selecciona la pestaña **Pages** y luego **Connect to Git**.
+5. Autoriza tu cuenta de GitHub y selecciona el repositorio:
+   **`kevinKfv/ProyectoJazmin`**
+6. Haz clic en **Begin setup**.
+
+### 2.2 Configuración de Build (Build Settings)
+Configura la pantalla de compilación exactamente con estos valores:
+
+* **Project name:** `sewstudio` (o el nombre que prefieras).
+* **Production branch:** `main`.
+* **Framework preset:** Selecciona **Next.js**.
+* **Build command:**
   ```bash
-  npm install && npx prisma generate && npx prisma db push && npm run build
+  npx @cloudflare/next-on-pages
   ```
-* **Start Command:**
-  ```bash
-  npm run start
+  *(o `npm run pages:build`)*
+* **Build output directory:**
+  ```text
+  .vercel/output/static
   ```
-* **Environment Variables:**
-  | Clave | Valor |
-  | :--- | :--- |
-  | `DATABASE_URL` | *(Pega la Internal Database URL de tu base de datos Render)* |
-  | `NODE_ENV` | `production` |
-  | `AUTH_TRUST_HOST` | `true` |
-  | `AUTH_SECRET` | *(Genera un secreto aleatorio o usa `openssl rand -base64 32`)* |
-  | `NEXTAUTH_SECRET` | *(El mismo valor que `AUTH_SECRET`)* |
-  | `GROQ_API_KEY` | *(Tu API key de Groq)* |
+* **Root directory:** `/` *(dejar en blanco o barra)*.
 
-#### 3. Ejecutar Semilla de Datos Inicial (Seed):
-Una vez desplegado con éxito, puedes poblar los datos de prueba desde Render:
-1. En el panel de tu Web Service en Render, ve a la pestaña **Shell**.
-2. Ejecuta:
+### 2.3 Variables de Entorno en Cloudflare Pages
+En la sección desplegable **Environment variables (advanced)**, añade las siguientes variables:
+
+| Variable | Valor | Descripción |
+| :--- | :--- | :--- |
+| `NODE_VERSION` | `20` | Versión de Node.js requerida por Next.js 16 |
+| `DATABASE_URL` | *(Pega la **External Database URL** de Render)* | Conexión a la base de datos PostgreSQL |
+| `AUTH_SECRET` | `openssl rand -base64 32` | Secreto para tokens de autenticación NextAuth |
+| `NEXTAUTH_SECRET` | *(El mismo valor que `AUTH_SECRET`)* | Compatibilidad con NextAuth v5 |
+| `AUTH_TRUST_HOST` | `true` | Para confiar en el dominio de Cloudflare Pages |
+| `NEXTAUTH_URL` | `https://tu-proyecto.pages.dev` | La URL de tu app en Cloudflare Pages |
+| `GROQ_API_KEY` | `gsk_tu_clave_de_groq` | Clave gratuita para la IA en [console.groq.com](https://console.groq.com/keys) |
+| `BACKEND_URL` | *(Opcional)* `https://sewstudio-web.onrender.com` | Si creaste el Web Service en Render para llamadas API |
+
+> [!TIP]
+> Ya incluimos los archivos `.nvmrc` y `.node-version` fijados en `20` en el repositorio, por lo que Cloudflare Pages seleccionará Node 20 automáticamente.
+
+### 2.4 Habilitar Compatibilidad con Node.js en Cloudflare Pages
+Una vez creado el proyecto en Cloudflare Pages:
+1. Ve a tu proyecto en Cloudflare Pages ➡️ **Settings** ➡️ **Functions**.
+2. En la sección **Compatibility flags**, asegúrate de que esté añadida la flag:
+   * **`nodejs_compat`**
+3. En **Compatibility date**, coloca: `2024-09-23` (o posterior).
+   *(Nota: Ya está especificado en `wrangler.toml`, pero es bueno verificarlo en el panel).*
+
+---
+
+## 🟢 Paso 3: Inicializar y Poblar la Base de Datos
+
+Una vez que tengas la base de datos de Render creada:
+
+1. En tu terminal local (o desde el Shell de Render si creaste el Web Service), ejecuta:
    ```bash
+   # Aplica el esquema a la base de datos de Render
+   npx prisma db push
+   
+   # Carga los usuarios demo, proyectos y patrones iniciales
    npm run db:seed
    ```
-¡Listo! Ya tendrás usuarios de prueba, proyectos y patrones cargados.
+2. ¡Listo! La base de datos PostgreSQL en Render ya tendrá todas las tablas creadas y los datos listos para ser consumidos por Cloudflare Pages.
 
 ---
 
-## 🟠 Parte 2: Conectar con Cloudflare (CDN, Dominio & SSL)
+## 🌐 Paso 4: (Opcional) Dominio Personalizado en Cloudflare Pages
 
-Para dotar a tu aplicación de un dominio personalizado (ej. `midominio.com`), SSL de grado empresarial y caché ultrarrápida:
-
-### Paso 1: Configurar el DNS en Cloudflare
-1. En el panel de **Cloudflare**, selecciona tu dominio.
-2. Ve a **DNS** ➡️ **Records**.
-3. Añade un registro **CNAME**:
-   * **Type:** `CNAME`
-   * **Name:** `@` (o tu subdominio, ej. `app`)
-   * **Target:** El hostname de Render (ej. `sewstudio-web.onrender.com`).
-   * **Proxy status:** **Proxied (Nube naranja ☁️)**.
-4. Guarda los cambios.
-
-### Paso 2: Configurar Dominio Personalizado en Render
-1. En el Web Service en Render, ve a **Settings** ➡️ **Custom Domains**.
-2. Añade tu dominio (ej. `midominio.com` o `app.midominio.com`).
-3. Render verificará el registro CNAME automáticamente.
-
-### Paso 3: SSL y Reglas de Rendimiento en Cloudflare
-1. En Cloudflare, ve a **SSL/TLS**:
-   * Modo de cifrado: Selecciona **Full** o **Full (strict)**.
-2. Ve a **Caching** ➡️ **Cache Rules** (Opcional para máxima velocidad):
-   * Puedes crear una regla para cachear en el Edge la carpeta estática de Next.js:
-     * Si la URI contiene `/_next/static/` ➡️ **Eligible for cache**, Edge TTL: 1 mes.
-     * Ya incluimos el archivo `public/_headers` en el repositorio para que Cloudflare y los navegadores apliquen `immutable` automáticamente a estos assets.
+Si tienes un dominio propio gestionado en Cloudflare (ej. `tudominio.com`):
+1. En tu proyecto de Cloudflare Pages, ve a la pestaña **Custom domains**.
+2. Haz clic en **Set up a custom domain**.
+3. Escribe tu subdominio o dominio principal (ej: `app.tudominio.com`).
+4. Cloudflare configurará el DNS y el certificado SSL de inmediato en cuestión de segundos de forma 100% automática.
 
 ---
 
-## ⚡ Parte 3: Despliegue Alternativo en Cloudflare Pages
+## 📁 Archivos Clave incluidos en el Repositorio
 
-Si deseas ejecutar la interfaz en **Cloudflare Pages** directamente:
-* El repositorio incluye `wrangler.toml`, `public/_headers` y `public/_routes.json`.
-* En Cloudflare Dashboard:
-  1. Ve a **Workers & Pages** ➡️ **Create application** ➡️ **Pages** ➡️ **Connect to Git**.
-  2. Framework preset: **Next.js**.
-  3. Build command: `npx @cloudflare/next-on-pages` (o `npm run build`).
-  4. Build output directory: `.vercel/output/static`.
-  5. En **Variables de entorno**, añade `DATABASE_URL` (requiere un servicio de base de datos accesible públicamente como Render Postgres o Supabase con adaptador TCP/Hyperdrive) y `AUTH_SECRET`.
-
----
-
-## 📋 Resumen de Archivos Agregados al Proyecto
-
-* **`render.yaml`**: Blueprint para aprovisionar Web Service y PostgreSQL en 1 clic.
-* **`Dockerfile`**: Compilación multi-etapa optimizada con Next.js standalone.
-* **`.dockerignore`**: Exclusión de archivos innecesarios para optimizar peso del contenedor.
-* **`wrangler.toml`**: Configuración para compatibilidad con Cloudflare Workers/Pages (`nodejs_compat`).
-* **`public/_headers`**: Encabezados de caché inmutable (`_next/static`) y seguridad HTTP.
-* **`public/_routes.json`**: Enrutamiento optimizado para Cloudflare Pages.
-* **`.env.example`**: Documentación de variables requeridas.
-* **`package.json`**: Añadido script `postinstall` para generar el cliente Prisma automáticamente y scripts de despliegue.
+* **`next.config.ts`**: Configura rewrites automáticos para `/api/*` hacia Render si defines `BACKEND_URL`, y habilita encabezados CORS para llamadas cruzadas.
+* **`wrangler.toml`**: Configuración para Cloudflare Pages con `nodejs_compat`.
+* **`.nvmrc` y `.node-version`**: Garantizan que Cloudflare Pages compile con Node.js 20.
+* **`public/_headers`**: Caché inmutable (`Cache-Control: immutable`) para assets estáticos y seguridad.
+* **`public/_routes.json`**: Enrutamiento optimizado de Cloudflare Pages.
+* **`render.yaml`**: Blueprint para levantar la base de datos y backend en Render con 1 clic.
