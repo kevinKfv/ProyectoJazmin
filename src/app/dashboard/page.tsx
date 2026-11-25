@@ -2,6 +2,7 @@ import { auth } from "@/auth"
 import { db } from "@/lib/db"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Scissors, Package, FolderKanban } from "lucide-react"
+import { DashboardQuickActions } from "@/components/dashboard-quick-actions"
 
 export default async function DashboardPage() {
   const session = await auth()
@@ -12,8 +13,9 @@ export default async function DashboardPage() {
   
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h2 className="text-3xl font-bold tracking-tight">¡Hola, {session?.user?.name}!</h2>
+        <DashboardQuickActions />
       </div>
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">

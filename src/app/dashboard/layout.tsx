@@ -2,6 +2,8 @@ import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { Sidebar } from "@/components/sidebar"
 import { AiChatWidget } from "@/components/ai-chat-widget"
+import { BirthdayLetterModal } from "@/components/birthday-letter-modal"
+import { SuggestionModal } from "@/components/suggestion-modal"
 
 export default async function DashboardLayout({
   children,
@@ -21,6 +23,8 @@ export default async function DashboardLayout({
         {children}
       </main>
       <AiChatWidget />
+      <BirthdayLetterModal />
+      <SuggestionModal />
     </div>
   )
 }

@@ -56,6 +56,7 @@ model User {
   fixedExpenses     FixedExpense[]
   workshopSettings  WorkshopSettings?
   suppliers         Supplier[]
+  suggestions       Suggestion[]
 }
 
 model VerificationToken {
@@ -369,5 +370,21 @@ model SupplierPriceHistory {
 
   supplierId   String
   supplier     Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+}
+
+// Modelo de Sugerencias y Mejoras para futuras actualizaciones
+model Suggestion {
+  id             String    @id @default(cuid())
+  title          String
+  description    String    @db.Text
+  category       String    @default("General") // Patronaje & Moldes, Inventario & Telas, Diseño & IA, Presupuestos & Clientes, General
+  priority       String    @default("Media")   // Urgente, Alta, Media, Deseo
+  status         String    @default("Pendiente") // Pendiente, En revisión, En desarrollo, Implementado
+  developerNotes String?   @db.Text
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  userId         String?
+  user           User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
